@@ -1,9 +1,12 @@
 package com.example.project.user.service;
 
+import com.example.project.global.util.JwtTokenUtil;
 import com.example.project.user.domain.User;
 import com.example.project.user.dto.UserDto;
 import com.example.project.user.dto.request.UserJoinRequest;
+import com.example.project.user.dto.request.UserLoginRequest;
 import com.example.project.user.dto.response.UserJoinResponse;
+import com.example.project.user.dto.response.UserLoginResponse;
 import com.example.project.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,12 +17,12 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder bCryptPasswordEncoder;
+    private final BCryptPasswordEncoder passwordEncoder;
 
     @Value("${jwt.token.secret}")
     private String secretKey;
 
-    private long expiredTimeMs = 1000 * 60 * 60; // 1시간
+    private long expireDate = 1000L * 60 * 30; // 30분
 
     public UserJoinResponse join(final UserJoinRequest userJoinRequest) {
 
@@ -30,9 +33,29 @@ public class UserService {
                 });
 
         // 사용자 비밀번호 암호화
-        User saveUser = userRepository.save(userJoinRequest.toEntity(bCryptPasswordEncoder.encode(userJoinRequest.getUserPassword())));
+        User saveUser = userRepository.save(userJoinRequest.toEntity(passwordEncoder.encode(userJoinRequest.getUserPassword())));
 
         return UserJoinResponse.fromEntity(saveUser);
     }
 
+    public UserLoginResponse login(final UserLoginRequest userLoginRequest) {
+
+        User user = userRepository.findByUserEmail(userLoginRequest.getUserEmail())
+                .orElseThrow(() -> new IllegalArgumentException("가입 되지 않은 이메일입니다."));
+
+        if(!passwordEncoder.matches(userLoginRequest.getUserPassword(), user.getUserPassword())) {
+            throw new IllegalArgumentException("이메일 또는 비밀번호가 맞지 않습니다.");
+        }
+
+        String token = JwtTokenUtil.createToken(user.getUserId(), secretKey, expireDate);
+
+        return UserLoginResponse.builder()
+                .token(token)
+                .build();
+    }
+
+    public User getUserByUserId(final Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("존재하지 않는 회원입니다."));
+    }
 }
