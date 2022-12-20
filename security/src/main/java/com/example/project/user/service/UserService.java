@@ -2,7 +2,7 @@ package com.example.project.user.service;
 
 import com.example.project.global.util.JwtTokenUtil;
 import com.example.project.user.domain.User;
-import com.example.project.user.dto.UserDto;
+import com.example.project.user.dto.Token;
 import com.example.project.user.dto.request.UserJoinRequest;
 import com.example.project.user.dto.request.UserLoginRequest;
 import com.example.project.user.dto.response.UserJoinResponse;
@@ -22,7 +22,11 @@ public class UserService {
     @Value("${jwt.token.secret}")
     private String secretKey;
 
-    private long expireDate = 1000L * 60 * 30; // 30분
+    @Value("${jwt.token.access-token-expiration}")
+    private long expireAccessDate;
+
+    @Value("${jwt.token.refresh-token-expiration}")
+    private long expireRefreshDate;
 
     public UserJoinResponse join(final UserJoinRequest userJoinRequest) {
 
@@ -47,7 +51,7 @@ public class UserService {
             throw new IllegalArgumentException("이메일 또는 비밀번호가 맞지 않습니다.");
         }
 
-        String token = JwtTokenUtil.createToken(user.getUserId(), secretKey, expireDate);
+        Token token = JwtTokenUtil.createToken(user.getUserId(), secretKey, expireAccessDate, expireRefreshDate);
 
         return UserLoginResponse.builder()
                 .token(token)

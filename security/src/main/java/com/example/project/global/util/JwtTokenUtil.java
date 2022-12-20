@@ -1,8 +1,10 @@
 package com.example.project.global.util;
 
+import com.example.project.user.dto.Token;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
@@ -11,19 +13,34 @@ import java.util.Date;
 @Slf4j
 public class JwtTokenUtil {
 
-    /* Token 발행 */
-    public static String createToken(final Long userId, final String key, final Long expiredTimeMs) {
+
+    public static Token createToken(final Long userId, final String key, final Long expireAccessDate, final Long expireRefreshDate) {
         // 토큰의 내용에 값을 넣기 위해 Claims 객체 생성
         Claims claims = Jwts.claims();
         claims.put("userId", userId);
 
-        return Jwts.builder()
+        /* AccessToken 발행 */
+        String accessToken = Jwts.builder()
                 .setClaims(claims)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiredTimeMs))
+                .setExpiration(new Date(System.currentTimeMillis() + expireAccessDate))
 //                .signWith(SignatureAlgorithm.HS256, key) // 11버전에서는 deprecated 되어서 key를 사용해야 된다.
                 .signWith(JwtTokenUtil.makeKey(key))
                 .compact();
+
+        /* RefreshToken 발행 */
+        String refreshToken = Jwts.builder()
+                .setClaims(claims)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + expireRefreshDate))
+                .signWith(JwtTokenUtil.makeKey(key))
+                .compact();
+
+
+        return Token.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .build();
     }
 
     /* key 생성 */
